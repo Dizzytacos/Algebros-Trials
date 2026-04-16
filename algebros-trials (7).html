@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Algebros Trials</title>
+<script>
+  var db;
+  const FIREBASE_CONFIG = {
+    apiKey:            "AIzaSyAv4coLMspn3eGznTngJNqspCLJ9jQOgE",
+    authDomain:        "algebros-trials.firebaseapp.com",
+    databaseURL:       "https://algebros-trials-default-rtdb.firebaseio.com",
+    projectId:         "algebros-trials",
+    storageBucket:     "algebros-trials.firebasestorage.app",
+    messagingSenderId: "830358920393",
+    appId:             "1:830358920393:web:6ee1d8952dd3e7b6dc0118"
+  };
+</script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+:root{
+  --bg:#08090f;--s1:#101218;--s2:#181b26;--s3:#1f2333;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);
+  --text:#dde1f0;--muted:#5a607a;--muted2:#3a3f52;
+  --red:#e8404a;--blue:#4a9eff;--green:#3dd68c;--amber:#f5a835;--purple:#a78bfa;
+  --font:'Syne',sans-serif;--mono:'Space Mono',monospace;
+}
+html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:var(--font);}
+.screen{display:none;min-height:100vh;}
+.screen.active{display:block;}
+#landing.active,#player-join.active,#endgame.active{display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.hidden{display:none!important;}
+
+/* shared */
+.logo{text-align:center;padding:28px 0 20px;}
+.logo h1{font-size:30px;font-weight:800;letter-spacing:-1px;color:#fff;}
+.logo h1 em{font-style:normal;color:var(--red);}
+.logo sub{display:block;font-family:var(--mono);font-size:9px;letter-spacing:3px;color:var(--muted);margin-top:5px;}
+.wrap{max-width:460px;margin:0 auto;padding:0 16px 80px;}
+.label{font-family:var(--mono);font-size:9px;letter-spacing:3px;color:var(--muted);text-transform:uppercase;margin-bottom:8px;}
+.card{background:var(--s1);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:14px;}
+input[type=text]{background:var(--s2);border:1px solid var(--border);border-radius:9px;color:var(--text);font-family:var(--font);font-size:14px;padding:11px 13px;width:100%;outline:none;transition:border-color .2s;}
+input[type=text]:focus{border-color:var(--blue);}
+input::placeholder{color:var(--muted);}
+.btn{display:block;width:100%;padding:15px;border:none;border-radius:12px;font-family:var(--font);font-size:15px;font-weight:700;cursor:pointer;transition:transform .15s;margin-bottom:8px;text-align:center;}
+.btn:last-child{margin-bottom:0;}
+.btn:active{transform:scale(.97);}
+.btn-red{background:var(--red);color:#fff;}
+.btn-blue{background:var(--blue);color:#fff;}
+.btn-green{background:var(--green);color:#0a1a10;}
+.btn-ghost{background:transparent;border:1px solid var(--border2);color:var(--muted);}
+.btn-sm{width:auto;padding:8px 14px;font-size:12px;display:inline-block;margin-bottom:0;}
+.err{font-family:var(--mono);font-size:10px;color:var(--red);text-align:center;min-height:14px;margin-top:6px;}
+.row-between{display:flex;align-items:center;justify-content:space-between;}
+.stepper{display:flex;align-items:center;gap:12px;}
+.step-btn{width:32px;height:32px;border-radius:8px;background:var(--s2);border:1px solid var(--border);color:var(--text);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;font-family:var(--mono);flex-shrink:0;}
+.step-btn:hover{border-color:var(--blue);color:var(--blue);}
+.step-val{font-family:var(--mono);font-size:20px;font-weight:700;min-width:28px;text-align:center;}
+.divider{height:1px;background:var(--border);margin:12px 0;}
+
+/* landing */
+#landing{padding:40px 20px;}
+.mode-cards{width:100%;max-width:400px;}
+.mode-card{background:var(--s1);border:1px solid var(--border);border-radius:16px;padding:22px 20px;margin-bottom:12px;cursor:pointer;transition:all .2s;}
+.mode-card:active{border-color:var(--blue);}
+.mode-card .micon{font-size:26px;margin-bottom:10px;}
+.mode-card h3{font-size:16px;font-weight:700;margin-bottom:4px;}
+.mode-card p{font-size:12px;color:var(--muted);line-height:1.5;}
+
+/* host setup */
+.config-row{display:flex;align-items:center;justify-content:space-between;padding:2px 0 12px;}
+.config-row:last-child{padding-bottom:0;}
+.config-label p{font-size:14px;}
+.config-label small{font-size:11px;color:var(--muted);display:block;margin-top:2px;}
+
+/* lobby - player list on host while waiting */
+.lobby-player{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);}
+.lobby-player:last-child{border-bottom:none;}
+.lobby-av{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex-shrink:0;}
+.lobby-name{font-size:14px;font-weight:700;}
+.lobby-count{font-family:var(--mono);font-size:11px;color:var(--muted);}
+
+/* host game */
+#game{padding-top:0;}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;background:var(--s1);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;}
+.topbar h2{font-size:15px;font-weight:700;}
+.live-pill{font-family:var(--mono);font-size:9px;letter-spacing:2px;background:rgba(61,214,140,.1);color:var(--green);padding:3px 7px;border-radius:4px;margin-left:6px;}
+.timer-d{font-family:var(--mono);font-size:12px;color:var(--muted);}
+.taskbar-track{height:9px;background:var(--s3);border-radius:999px;overflow:hidden;margin:8px 0 5px;border:1px solid var(--border);}
+.taskbar-fill{height:100%;background:linear-gradient(90deg,#3dd68c,#2af58a);border-radius:999px;transition:width .5s cubic-bezier(.34,1.3,.64,1);}
+.taskbar-labels{display:flex;justify-content:space-between;font-family:var(--mono);font-size:9px;color:var(--muted);}
+.action-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
+.act-btn{padding:14px 8px;border-radius:11px;border:none;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;transition:all .18s;text-align:center;}
+.act-btn:active{transform:scale(.96);}
+.act-meet{background:var(--amber);color:#1a0e00;}
+.act-body{background:rgba(232,64,74,.13);border:1px solid var(--red);color:var(--red);}
+.tasks-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;}
+.task-card{background:var(--s1);border:1px solid var(--border);border-radius:11px;padding:12px;}
+.task-card.done{border-color:rgba(61,214,140,.25);opacity:.5;}
+.tnum{font-family:var(--mono);font-size:9px;color:var(--muted);margin-bottom:4px;}
+.tname{font-size:12px;font-weight:700;line-height:1.3;}
+.tloc{font-size:10px;color:var(--muted);margin-top:3px;}
+.tstate{margin-top:8px;font-family:var(--mono);font-size:9px;font-weight:700;}
+.task-card.done .tstate{color:var(--green);}
+.task-card:not(.done) .tstate{color:var(--muted);}
+.feed-item{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px;}
+.feed-item:last-child{border-bottom:none;}
+.alive-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
+.chip{display:flex;align-items:center;gap:5px;background:var(--s2);border:1px solid var(--border);border-radius:20px;padding:5px 10px 5px 7px;font-size:12px;}
+.chip.dead{opacity:.2;text-decoration:line-through;}
+.dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.pts-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px;}
+.pts-row:last-child{border-bottom:none;}
+.pts-val{font-family:var(--mono);font-weight:700;color:var(--green);}
+
+/* player join */
+#player-join{padding:20px;}
+#player-join .wrap{width:100%;}
+.code-input{font-family:var(--mono);font-size:26px;text-align:center;letter-spacing:8px;text-transform:uppercase;}
+
+/* player waiting */
+#p-waiting{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:40px 20px;}
+.big-spin{font-size:48px;animation:spin 3s linear infinite;display:block;margin-bottom:20px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* player game */
+#p-game{padding-top:0;}
+.p-topbar{background:var(--s1);border-bottom:1px solid var(--border);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;}
+.p-topbar h2{font-size:14px;font-weight:700;}
+.p-wrap{max-width:460px;margin:0 auto;padding:0 16px 60px;}
+.role-banner{border-radius:16px;padding:22px 20px;text-align:center;margin:16px 0 20px;}
+.role-banner.imp{background:rgba(232,64,74,.1);border:2px solid var(--red);}
+.role-banner.crew{background:rgba(74,158,255,.08);border:2px solid var(--blue);}
+.role-banner .ricon{font-size:44px;display:block;margin-bottom:10px;}
+.role-banner .rtitle{font-size:24px;font-weight:800;margin-bottom:6px;}
+.role-banner.imp .rtitle{color:var(--red);}
+.role-banner.crew .rtitle{color:var(--blue);}
+.role-banner .rdesc{font-size:12px;color:var(--muted);line-height:1.6;}
+.task-submit-card{background:var(--s1);border:1px solid var(--border);border-radius:13px;margin-bottom:9px;overflow:hidden;}
+.tscard-hdr{display:flex;align-items:center;gap:10px;padding:13px 15px;cursor:pointer;user-select:none;}
+.tnum-s{font-family:var(--mono);font-size:9px;color:var(--muted);width:38px;flex-shrink:0;}
+.tname-s{font-size:13px;font-weight:700;flex:1;}
+.tstatus{font-family:var(--mono);font-size:9px;font-weight:700;}
+.tstatus.done{color:var(--green);}
+.tstatus.pend{color:var(--muted);}
+.tscard-body{padding:0 15px 15px;border-top:1px solid var(--border);display:none;}
+.tscard-body .tdesc{font-size:12px;color:var(--muted);line-height:1.5;margin:10px 0;}
+.anon-badge{display:inline-flex;align-items:center;gap:5px;background:rgba(245,168,53,.08);border:1px solid rgba(245,168,53,.22);border-radius:20px;padding:4px 10px;font-size:9px;color:var(--amber);font-family:var(--mono);margin-bottom:10px;}
+.photo-zone{border:1.5px dashed var(--border2);border-radius:10px;padding:22px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:10px;}
+.photo-zone:hover{border-color:var(--blue);}
+.photo-zone p{font-size:12px;color:var(--muted);}
+input[type=file]{display:none;}
+
+/* meeting */
+.meeting-full{position:fixed;inset:0;background:var(--bg);z-index:600;overflow-y:auto;}
+.meeting-inner{max-width:460px;margin:0 auto;padding:24px 16px;}
+.meeting-hdr{text-align:center;margin-bottom:26px;}
+.siren{font-size:48px;animation:flash .65s infinite alternate;display:block;margin-bottom:10px;}
+@keyframes flash{from{opacity:1;}to{opacity:.15;}}
+.meeting-hdr h2{font-size:25px;font-weight:800;color:var(--amber);}
+.meeting-hdr p{font-size:12px;color:var(--muted);font-family:var(--mono);margin-top:5px;}
+.vote-list{display:grid;gap:8px;margin-bottom:12px;}
+.vote-opt{display:flex;align-items:center;gap:12px;background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:12px 14px;cursor:pointer;transition:all .2s;font-size:15px;font-weight:700;}
+.vote-opt:hover{border-color:var(--red);}
+.vote-opt.sel{border-color:var(--red);background:rgba(232,64,74,.08);}
+.vote-opt.skip-opt{font-weight:400;color:var(--muted);font-size:13px;}
+.v-av{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0;}
+
+/* endgame */
+#endgame{padding:36px 20px;text-align:center;}
+.end-big{font-size:64px;display:block;margin-bottom:14px;}
+.end-title{font-size:30px;font-weight:800;margin-bottom:8px;}
+.end-title.crew{color:var(--blue);}
+.end-title.imp{color:var(--red);}
+.end-sub{font-size:13px;color:var(--muted);margin-bottom:26px;}
+.end-pts-card{background:var(--s1);border:1px solid var(--border);border-radius:16px;padding:16px;text-align:left;margin-bottom:14px;width:100%;max-width:400px;}
+.end-pts-card h3{font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--muted);margin-bottom:12px;}
+.erow{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;}
+.erow:last-child{border-bottom:none;}
+.eval{font-family:var(--mono);font-weight:700;color:var(--green);}
+.end-btns{width:100%;max-width:400px;}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.9);display:flex;align-items:center;justify-content:center;z-index:500;padding:20px;}
+.modal{background:var(--s1);border:1px solid var(--border2);border-radius:20px;padding:30px 22px;width:100%;max-width:340px;text-align:center;}
+.srow{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;}
+.srow:last-child{border-bottom:none;}
+.sval{font-family:var(--mono);font-weight:700;color:var(--amber);}
+</style>
+</head>
+<body>
+
+<!-- LANDING -->
+<div id="landing" class="screen active">
+  <div class="logo"><h1>ALGEBROS <em>TRIALS</em></h1><sub>GAME I — AMONG US IRL</sub></div>
+  <div class="mode-cards">
+    <div class="mode-card" onclick="goScreen('setup')">
+      <div class="micon">🎮</div>
+      <h3>Host</h3>
+      <p>Create a game, watch players join, assign roles. Use a laptop or tablet.</p>
+    </div>
+    <div class="mode-card" onclick="goScreen('player-join')">
+      <div class="micon">📱</div>
+      <h3>Player — Join Game</h3>
+      <p>Enter your name and the game code from the host screen. See your role privately.</p>
+    </div>
+  </div>
+</div>
+
+<!-- HOST SETUP -->
+<div id="setup" class="screen">
+  <div class="logo"><h1>HOST <em>SETUP</em></h1><sub>ALGEBROS TRIALS</sub></div>
+  <div class="wrap">
+    <div class="label">Game Code — share this with players</div>
+    <div class="card row-between" style="margin-bottom:6px;">
+      <span style="font-family:var(--mono);font-size:28px;font-weight:700;letter-spacing:8px;" id="code-display">----</span>
+      <button class="btn btn-ghost btn-sm" onclick="regenCode()">New Code</button>
+    </div>
+
+
+    <div class="label">Game Config</div>
+    <div class="card">
+      <div class="config-row">
+        <div class="config-label"><p>Imposters</p><small id="imp-hint">Set before starting</small></div>
+        <div class="stepper">
+          <button class="step-btn" onclick="chImp(-1)">−</button>
+          <span class="step-val" id="imp-ct">1</span>
+          <button class="step-btn" onclick="chImp(1)">+</button>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="config-row" style="padding-bottom:4px;">
+        <div class="config-label"><p>Task pool total</p><small>Completions to fill bar &amp; crew wins</small></div>
+        <div class="stepper">
+          <button class="step-btn" onclick="chPool(-1)">−</button>
+          <span class="step-val" id="pool-ct">20</span>
+          <button class="step-btn" onclick="chPool(1)">+</button>
+        </div>
+      </div>
+      <p id="pool-math" style="font-family:var(--mono);font-size:9px;color:var(--purple);margin-top:6px;"></p>
+    </div>
+
+    <div class="label">Players Joined (<span id="lobby-count">0</span>)</div>
+    <div class="card" id="lobby-list">
+      <p style="font-size:12px;color:var(--muted);text-align:center;padding:8px 0;">Waiting for players to join...</p>
+    </div>
+
+    <div class="label">Tasks (physical / printed)</div>
+    <div class="card" style="padding:12px 14px;" id="task-list-setup"></div>
+
+    <div class="err" id="setup-err"></div>
+    <button class="btn btn-red" id="start-btn" onclick="startGame()">START GAME &amp; ASSIGN ROLES →</button>
+    <button class="btn btn-ghost" onclick="leaveSetup()">Back</button>
+  </div>
+</div>
+
+<!-- HOST GAME DASHBOARD -->
+<div id="game" class="screen">
+  <div class="topbar">
+    <h2>CASA BOOD <span class="live-pill">LIVE</span></h2>
+    <div class="timer-d" id="g-timer">00:00</div>
+  </div>
+  <div class="wrap" style="padding-top:14px;">
+
+    <div class="label">Task Bar — <span id="pool-label" style="color:var(--purple);font-family:var(--mono);font-size:9px;"></span></div>
+    <div class="card" style="margin-bottom:14px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <span style="font-size:12px;color:var(--muted);">Fill to crew win</span>
+        <span style="font-family:var(--mono);font-size:16px;color:var(--green);font-weight:700;" id="bar-pct">0%</span>
+      </div>
+      <div class="taskbar-track"><div class="taskbar-fill" id="bar-fill" style="width:0%"></div></div>
+      <div class="taskbar-labels">
+        <span id="bar-label">0 / 0 completions</span>
+      </div>
+    </div>
+
+    <div class="label">Live Submissions</div>
+    <div class="card" style="margin-bottom:14px;" id="feed-card">
+      <p style="font-size:12px;color:var(--muted);text-align:center;padding:4px 0;">Waiting for submissions...</p>
+    </div>
+
+    <div class="action-row">
+      <button class="act-btn act-meet" onclick="hostMeeting('emergency')">⚠ CALL MEETING</button>
+      <button class="act-btn act-body" onclick="hostMeeting('body')">💀 REPORT BODY</button>
+    </div>
+
+    <div class="label">Task Status</div>
+    <div class="tasks-grid" id="host-tasks-grid"></div>
+
+    <div class="card" style="margin-bottom:14px;">
+      <div class="label" style="margin-bottom:8px;">Players Alive</div>
+      <div class="alive-chips" id="alive-chips"></div>
+    </div>
+
+    <div class="card" style="margin-bottom:14px;">
+      <div class="label" style="margin-bottom:10px;">Round Points</div>
+      <div id="host-pts"></div>
+    </div>
+
+    <button class="btn btn-ghost" onclick="confirmForceEnd()">Host: Force End Game</button>
+  </div>
+</div>
+
+<!-- PLAYER JOIN -->
+<div id="player-join" class="screen">
+  <div class="logo"><h1>JOIN <em>GAME</em></h1><sub>ALGEBROS TRIALS</sub></div>
+  <div class="wrap">
+    <div class="label">Your Name</div>
+    <input type="text" id="join-name" placeholder="Your name" style="margin-bottom:14px;" autocomplete="off">
+    <div class="label">Game Code</div>
+    <input type="text" id="join-code" placeholder="4-letter code" maxlength="4" class="code-input" style="margin-bottom:8px;" autocomplete="off" oninput="this.value=this.value.toUpperCase()">
+    <div class="err" id="join-err"></div>
+    <button class="btn btn-blue" onclick="joinGame()">JOIN →</button>
+    <button class="btn btn-ghost" onclick="goScreen('landing')">Back</button>
+  </div>
+</div>
+
+<!-- PLAYER WAITING ROOM -->
+<div id="p-waiting" class="screen">
+  <span class="big-spin">🎮</span>
+  <p style="font-size:18px;font-weight:700;margin-bottom:8px;">You're in the lobby!</p>
+  <p style="font-size:14px;color:var(--green);font-weight:700;margin-bottom:6px;" id="pw-name"></p>
+  <p style="font-size:12px;color:var(--muted);">Waiting for host to start the game...</p>
+  <div id="debug-box" style="margin-top:24px;background:#101218;border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:12px 14px;max-width:340px;text-align:left;">
+    <p style="font-family:monospace;font-size:10px;color:#5a607a;margin-bottom:6px;">DEBUG — firebase state:</p>
+    <p style="font-family:monospace;font-size:11px;color:#dde1f0;white-space:pre-wrap;word-break:break-all;" id="debug-text">connecting...</p>
+  </div>
+</div>
+
+<!-- PLAYER GAME -->
+<div id="p-game" class="screen">
+  <div class="p-topbar">
+    <h2 id="pg-name">Player</h2>
+    <span style="font-family:var(--mono);font-size:12px;color:var(--green);font-weight:700;" id="pg-bar-mini">0%</span>
+  </div>
+  <div class="p-wrap">
+    <div class="role-banner" id="pg-role-banner">
+      <span class="ricon" id="pg-role-icon">🧑‍🚀</span>
+      <div class="rtitle" id="pg-role-title">CREWMATE</div>
+      <p class="rdesc" id="pg-role-desc"></p>
+    </div>
+
+    <div class="label">Shared Task Bar</div>
+    <div class="card" style="margin-bottom:14px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <span style="font-size:12px;color:var(--muted);">Fill to crew win</span>
+        <span style="font-family:var(--mono);font-size:14px;color:var(--green);font-weight:700;" id="ps-pct">0%</span>
+      </div>
+      <div class="taskbar-track"><div class="taskbar-fill" id="ps-fill" style="width:0%"></div></div>
+      <div class="taskbar-labels">
+        <span id="ps-label">0 done</span>
+        <span style="color:var(--purple);" id="ps-bonus"></span>
+      </div>
+    </div>
+
+    <div class="label">Tasks</div>
+    <p style="font-size:11px;color:var(--muted);line-height:1.5;margin-bottom:12px;">Tap a task to expand. Photo your proof. 100% anonymous — your name is never sent.</p>
+    <div id="player-task-list"></div>
+  </div>
+</div>
+
+<!-- MEETING -->
+<div id="meeting-screen" class="meeting-full hidden">
+  <div class="meeting-inner">
+    <div class="meeting-hdr">
+      <span class="siren">🚨</span>
+      <h2>EMERGENCY MEETING</h2>
+      <p id="meet-sub">Discuss. Then vote to eject.</p>
+    </div>
+    <div class="label">Vote to Eject</div>
+    <div class="vote-list" id="vote-list"></div>
+    <button class="btn btn-red" onclick="castVote()">CAST VOTE</button>
+    <button class="btn btn-ghost" onclick="skipVote()">Skip / No Consensus</button>
+    <div class="err" id="vote-err"></div>
+  </div>
+</div>
+
+<!-- ENDGAME -->
+<div id="endgame" class="screen">
+  <span class="end-big" id="eg-icon">🏆</span>
+  <div class="end-title" id="eg-title"></div>
+  <p class="end-sub" id="eg-sub"></p>
+  <div class="end-pts-card">
+    <h3>ROUND POINTS</h3>
+    <div id="eg-pts"></div>
+  </div>
+  <div class="end-btns">
+    <button class="btn btn-ghost" onclick="openSeasonModal()">Season Totals</button>
+    <button class="btn btn-ghost" onclick="hardReset()">New Game</button>
+  </div>
+</div>
+
+<!-- SEASON MODAL -->
+<div id="season-overlay" class="overlay hidden">
+  <div class="modal" style="max-width:360px;width:100%;">
+    <div style="font-size:32px;margin-bottom:10px;">📊</div>
+    <div style="font-size:18px;font-weight:800;color:var(--amber);margin-bottom:14px;">SEASON TOTALS</div>
+    <div id="season-list" style="text-align:left;width:100%;"></div>
+    <button class="btn btn-ghost" style="margin-top:14px;" onclick="Q('season-overlay').classList.add('hidden')">Close</button>
+  </div>
+</div>
+
+<script>
+firebase.initializeApp(FIREBASE_CONFIG);
+db = firebase.database();
+
+// ── CONSTANTS ──
+const TASKS = [
+  {name:"Puzzle",          loc:"Kitchen table",      desc:"Complete the 100-piece puzzle. Photo the finished result."},
+  {name:"Printed Maze",    loc:"Any flat surface",   desc:"Navigate the printed maze with a pen. Photo your completed path."},
+  {name:"Memory Match",    loc:"Living room",        desc:"Match all pairs in the card game. Photo the matched pairs."},
+  {name:"Scavenger Item",  loc:"Hidden outdoors",    desc:"Find the hidden object on the property. Photo it in its spot."},
+  {name:"Trivia Sheet",    loc:"Printed sheet",      desc:"Answer all trivia questions. Photo your answers."},
+  {name:"Word Unscramble", loc:"Printed sheet",      desc:"Unscramble all words. Photo the completed sheet."},
+  {name:"Yard Lap",        loc:"Exterior perimeter", desc:"Run one full lap around the property. Photo yourself at the finish."},
+  {name:"15 Pushups",      loc:"Anywhere",           desc:"Complete 15 pushups. Photo or video at the end."},
+  {name:"QR Code Scan",    loc:"Hidden in house",    desc:"Find and scan the hidden QR code. Screenshot the result."},
+  {name:"Coin Tower",      loc:"Any table",          desc:"Stack 10 coins into a tower without falling. Photo the standing tower."}
+];
+const COLORS  = ['#e8404a','#4a9eff','#3dd68c','#f5a835','#a78bfa','#ff6eb4','#40d4e8','#ff944a'];
+const MEDALS  = ['🥇','🥈','🥉'];
+
+// ── LOCAL STATE ──
+let L = {
+  isHost:      false,
+  myName:      '',
+  myRole:      '',
+  myTasksDone: new Set(),
+  photoReady:  {},
+  gameCode:    '',
+  imposters:   1,
+  taskPool:    20,
+  selectedVote:null,
+  timerInt:    null,
+  timerSec:    0,
+  seasonPts:   {},   // lives locally across games
+  // last snapshot from Firebase
+  snap:        {},
+};
+
+// ── UTILS ──
+function Q(id){ return document.getElementById(id); }
+function goScreen(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); Q(id).classList.add('active'); window.scrollTo(0,0); }
+function gref(){ return db.ref('games/'+L.gameCode); }
+function genCode(){ return Math.random().toString(36).substring(2,6).toUpperCase(); }
+function playerColor(name){ const i=(L.snap.players||[]).indexOf(name); return i>=0?COLORS[i%COLORS.length]:'#888'; }
+
+// ── SETUP ──
+function initSetup(){
+  L.gameCode = genCode();
+  Q('code-display').textContent = L.gameCode;
+  L.imposters = 1; Q('imp-ct').textContent = 1;
+  L.taskPool  = 20; Q('pool-ct').textContent = 20;
+  updatePoolMath();
+  renderTaskSetupList();
+  // open a lobby in Firebase so players can join
+  gref().set({ lobby:true, players:[], gameStarted:false });
+  // listen for players joining the lobby
+  gref().child('players').on('value', snap => {
+    const players = snap.val() ? Object.values(snap.val()) : [];
+    renderLobby(players);
+  });
+}
+
+function regenCode(){
+  gref().off(); gref().remove();
+  L.gameCode = genCode();
+  Q('code-display').textContent = L.gameCode;
+  Q('lobby-list').innerHTML = '<p style="font-size:12px;color:var(--muted);text-align:center;padding:8px 0;">Waiting for players to join...</p>';
+  Q('lobby-count').textContent = '0';
+  gref().set({ lobby:true, players:[], gameStarted:false });
+  gref().child('players').on('value', snap => {
+    const players = snap.val() ? Object.values(snap.val()) : [];
+    renderLobby(players);
+  });
+}
+
+function leaveSetup(){ gref().off(); goScreen('landing'); }
+
+function renderLobby(players){
+  Q('lobby-count').textContent = players.length;
+  updatePoolMath(players.length);
+  if(!players.length){
+    Q('lobby-list').innerHTML = '<p style="font-size:12px;color:var(--muted);text-align:center;padding:8px 0;">Waiting for players to join...</p>';
+    return;
+  }
+  Q('lobby-list').innerHTML = players.map((p,i) => {
+    const init = p.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+    return `<div class="lobby-player">
+      <div class="lobby-av" style="background:${COLORS[i%COLORS.length]}22;color:${COLORS[i%COLORS.length]};">${init}</div>
+      <span class="lobby-name">${p}</span>
+    </div>`;
+  }).join('');
+}
+
+function chImp(d){ L.imposters=Math.max(1,Math.min(3,L.imposters+d)); Q('imp-ct').textContent=L.imposters; updatePoolMath(); }
+function chPool(d){ L.taskPool=Math.max(TASKS.length,Math.min(150,L.taskPool+d)); Q('pool-ct').textContent=L.taskPool; updatePoolMath(); }
+function updatePoolMath(n){
+  const playerCount = n || parseInt(Q('lobby-count').textContent) || 7;
+  const crew = Math.max(1, playerCount - L.imposters);
+  Q('pool-math').textContent = `${L.taskPool} total ÷ ${crew} crewmates ≈ ${(L.taskPool/crew).toFixed(1)} tasks each`;
+  Q('imp-hint').textContent = `Rec: 1 for ${playerCount} players`;
+}
+function renderTaskSetupList(){
+  Q('task-list-setup').innerHTML = TASKS.map((t,i)=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);">
+      <span style="font-family:var(--mono);font-size:9px;color:var(--muted);width:20px;">${i+1}</span>
+      <span style="font-size:12px;flex:1;font-weight:700;">${t.name}</span>
+      <span style="font-size:10px;color:var(--muted);">${t.loc}</span>
+    </div>`).join('')
+  + `<p style="font-size:10px;color:var(--muted);margin-top:10px;line-height:1.5;">Players can repeat tasks — each repeat is +1 toward the pool. +1 bonus pt for completing all 10 unique tasks.</p>`;
+}
+
+// ── START GAME ──
+function startGame(){
+  // read current lobby players
+  gref().child('players').once('value', snap => {
+    const raw = snap.val();
+    // Firebase stores push-keyed objects, get the name values
+    const players = raw ? Object.values(raw) : [];
+    if(players.length < 2){ Q('setup-err').textContent='Need at least 2 players in lobby.'; return; }
+    Q('setup-err').textContent='';
+
+    // assign roles — roles object keyed by player name
+    const shuffled = [...players].sort(()=>Math.random()-.5);
+    const roles = {};
+    shuffled.forEach((p,i) => { roles[p] = i < L.imposters ? 'imposter' : 'crewmate'; });
+
+    const roundPoints = {};
+    players.forEach(p => { roundPoints[p]=0; if(!L.seasonPts[p]) L.seasonPts[p]=0; });
+
+    // Build the full game state object
+    // Store players as an object keyed by index to avoid Firebase array quirks
+    const playersObj = {};
+    players.forEach((p,i) => { playersObj[i] = p; });
+
+    const gameState = {
+      players:     playersObj,  // object not array
+      roles,                    // { "PlayerName": "imposter"|"crewmate" }
+      taskPool:    L.taskPool,
+      tasksDone:   0,
+      taskLog:     {},
+      eliminated:  {},          // object not array
+      roundPoints,
+      gameStarted: true,
+      gameOver:    false,
+      winSide:     '',
+      meetingOpen: false,
+      meetingType: '',
+    };
+
+    // write — this replaces the whole game node including lobby
+    gref().set(gameState, err => {
+      if(err){ alert('Failed to start game: '+err); return; }
+
+      L.isHost = true;
+      L.snap   = { ...gameState, players, eliminated:[] }; // keep as arrays locally
+
+      // host listens to full game
+      gref().on('value', s => {
+        const data = s.val(); if(!data) return;
+        // normalize players and eliminated back to arrays for local use
+        data.players   = data.players   ? Object.values(data.players)   : [];
+        data.eliminated= data.eliminated? Object.values(data.eliminated): [];
+        L.snap = data;
+        renderHostDashboard();
+        if(!data.gameOver) checkWin();
+        if(data.gameOver) renderEndgame(data.winSide, data.winReason);
+        if(data.meetingOpen){ showMeeting(data.meetingType); }
+        else { Q('meeting-screen').classList.add('hidden'); }
+      });
+
+      startTimer();
+      goScreen('game');
+    });
+  });
+}
+
+// ── HOST DASHBOARD ──
+function renderHostDashboard(){
+  const d = L.snap;
+  const done = d.tasksDone||0;
+  const pool = d.taskPool||L.taskPool;
+  const pct  = Math.min(100, Math.round(done/pool*100));
+
+  Q('bar-fill').style.width = pct+'%';
+  Q('bar-pct').textContent  = pct+'%';
+  Q('bar-label').textContent= `${done} / ${pool} completions`;
+  Q('pool-label').textContent= `pool: ${pool}`;
+
+  // feed
+  const log = d.taskLog ? Object.values(d.taskLog) : [];
+  const feedEl = Q('feed-card');
+  if(!log.length){
+    feedEl.innerHTML='<p style="font-size:12px;color:var(--muted);text-align:center;padding:4px 0;">Waiting for submissions...</p>';
+  } else {
+    feedEl.innerHTML=[...log].sort((a,b)=>b.ts-a.ts).slice(0,10).map(s=>{
+      const t=TASKS[s.taskIdx]; const sec=Math.round((Date.now()-s.ts)/1000);
+      return `<div class="feed-item"><span style="color:var(--green);">✓ ${t?t.name:'Task'}</span><span style="font-family:var(--mono);font-size:9px;color:var(--muted);">${sec<60?sec+'s ago':Math.floor(sec/60)+'m ago'}</span></div>`;
+    }).join('');
+  }
+
+  // task grid
+  const submittedIdx = new Set(log.map(s=>s.taskIdx));
+  const tg=Q('host-tasks-grid'); tg.innerHTML='';
+  TASKS.forEach((t,i)=>{
+    const el=document.createElement('div');
+    el.className='task-card'+(submittedIdx.has(i)?' done':'');
+    el.innerHTML=`<div class="tnum">TASK ${String(i+1).padStart(2,'0')}</div><div class="tname">${t.name}</div><div class="tloc">${t.loc}</div><div class="tstate">${submittedIdx.has(i)?'✓ SUBMITTED':'PENDING'}</div>`;
+    tg.appendChild(el);
+  });
+
+  // alive chips
+  const players = d.players||[];
+  const elim    = d.eliminated ? Object.values(d.eliminated) : [];
+  const ac=Q('alive-chips'); ac.innerHTML='';
+  players.forEach((p,i)=>{
+    const dead=elim.includes(p);
+    const el=document.createElement('div'); el.className='chip'+(dead?' dead':'');
+    el.innerHTML=`<span class="dot" style="background:${dead?'#333':COLORS[i%COLORS.length]};"></span>${p}`;
+    ac.appendChild(el);
+  });
+
+  // points
+  const pts=d.roundPoints||{};
+  const pl=Q('host-pts'); pl.innerHTML='';
+  [...players].sort((a,b)=>(pts[b]||0)-(pts[a]||0)).forEach(p=>{
+    const el=document.createElement('div'); el.className='pts-row';
+    el.innerHTML=`<span>${p}</span><span class="pts-val">${(pts[p]||0).toFixed(2)}</span>`;
+    pl.appendChild(el);
+  });
+}
+
+// ── PLAYER JOIN ──
+function joinGame(){
+  const name = Q('join-name').value.trim();
+  const code = Q('join-code').value.trim().toUpperCase();
+  if(!name){ Q('join-err').textContent='Enter your name.'; return; }
+  if(code.length!==4){ Q('join-err').textContent='Enter the 4-letter code.'; return; }
+
+  L.myName  = name;
+  L.gameCode= code;
+  L.isHost  = false;
+  L.myTasksDone = new Set();
+  L.photoReady  = {};
+
+  Q('pw-name').textContent = name;
+  goScreen('p-waiting');
+
+  // add self to lobby players list
+  db.ref('games/'+code+'/players').once('value', snap => {
+    const existing = snap.val() ? Object.values(snap.val()) : [];
+    if(!existing.includes(name)){
+      db.ref('games/'+code+'/players').push(name);
+    }
+  });
+
+  // listen for game to start — fires immediately with current state, then on every change
+  db.ref('games/'+code).on('value', snap => {
+    const raw = snap.val();
+    if(!raw) return;
+
+    // normalize Firebase objects back to arrays
+    const data = { ...raw };
+    data.players    = raw.players    ? Object.values(raw.players)    : [];
+    data.eliminated = raw.eliminated ? Object.values(raw.eliminated) : [];
+    L.snap = data;
+
+    // show debug info on waiting screen
+    const dbg = Q('debug-text');
+    if(dbg) dbg.textContent = JSON.stringify({
+      gameStarted: raw.gameStarted || false,
+      players: data.players,
+      hasRoles: !!raw.roles,
+      myRole: raw.roles ? (raw.roles[name] || 'NAME NOT IN ROLES') : 'no roles key',
+      myName: name,
+    }, null, 2);
+
+    if(data.gameStarted){
+      const roles = data.roles || {};
+      L.myRole = roles[name] || null;
+
+      if(!L.myRole){
+        Q('pw-name').textContent = name + ' (check debug below)';
+        return;
+      }
+
+      renderPlayerGame();
+      if(!Q('p-game').classList.contains('active')){
+        goScreen('p-game');
+      }
+    }
+
+    if(data.gameOver){
+      renderEndgame(data.winSide, data.winReason);
+      return;
+    }
+
+    // meeting — only on player game screen
+    if(data.meetingOpen && Q('p-game').classList.contains('active')){
+      showMeeting(data.meetingType);
+    } else if(!data.meetingOpen){
+      Q('meeting-screen').classList.add('hidden');
+    }
+  });
+}
+
+// ── PLAYER GAME ──
+function renderPlayerGame(){
+  const d    = L.snap;
+  const role = L.myRole;
+  const isImp= role==='imposter';
+  Q('pg-name').textContent = L.myName;
+  const banner = Q('pg-role-banner');
+  banner.className = 'role-banner '+(isImp?'imp':'crew');
+  Q('pg-role-icon').textContent = isImp?'🗡️':'🧑‍🚀';
+  Q('pg-role-title').textContent= isImp?'IMPOSTER':'CREWMATE';
+  Q('pg-role-desc').textContent = isImp
+    ? `Eliminate crewmates. Pretend to do tasks. Win by outnumbering crew. 2 pts for winning + ⅓ pt per elimination.`
+    : `Complete tasks to fill the shared bar (${d.taskPool||L.taskPool} total needed). 1 pt for winning. +1 bonus for all 10 unique tasks.`;
+  updatePlayerBar();
+  renderPlayerTaskList();
+}
+
+function updatePlayerBar(){
+  const d    = L.snap;
+  const done = d.tasksDone||0;
+  const pool = d.taskPool||L.taskPool;
+  const pct  = Math.min(100,Math.round(done/pool*100));
+  Q('ps-fill').style.width= pct+'%';
+  Q('ps-pct').textContent = pct+'%';
+  Q('pg-bar-mini').textContent= pct+'%';
+  Q('ps-label').textContent   = `${done} / ${pool}`;
+  const mc = L.myTasksDone.size;
+  Q('ps-bonus').textContent   = mc>=TASKS.length?'+1 BONUS EARNED ✓':mc>0?`${mc}/10 unique`:'';
+}
+
+function renderPlayerTaskList(){
+  const list=Q('player-task-list'); list.innerHTML='';
+  TASKS.forEach((t,i)=>{
+    const myDone=L.myTasksDone.has(i);
+    const card=document.createElement('div'); card.className='task-submit-card';
+    const body=myDone?'':`
+      <div class="tscard-body" id="tbody_${i}">
+        <p class="tdesc">${t.desc}</p>
+        <div class="anon-badge">🔒 ANONYMOUS — name never sent</div>
+        <label for="fi_${i}">
+          <div class="photo-zone" id="pz_${i}">
+            <p style="font-size:20px;margin-bottom:4px;">📷</p>
+            <p>Tap to photograph proof</p>
+          </div>
+        </label>
+        <input type="file" id="fi_${i}" accept="image/*" capture="environment" onchange="onPhoto(event,${i})">
+        <button class="btn btn-green" style="margin-top:8px;" onclick="submitTask(${i})">SUBMIT PROOF</button>
+      </div>`;
+    card.innerHTML=`
+      <div class="tscard-hdr" onclick="toggleBody(${i},${myDone})">
+        <span class="tnum-s">TASK ${String(i+1).padStart(2,'0')}</span>
+        <span class="tname-s">${t.name}</span>
+        <span class="tstatus ${myDone?'done':'pend'}">${myDone?'✓ SUBMITTED':'PENDING'}</span>
+      </div>${body}`;
+    list.appendChild(card);
+  });
+}
+
+function toggleBody(idx,myDone){
+  if(myDone) return;
+  const b=Q('tbody_'+idx); if(!b) return;
+  b.style.display=b.style.display==='block'?'none':'block';
+}
+function onPhoto(e,idx){
+  if(e.target.files[0]){
+    L.photoReady[idx]=true;
+    const fr=new FileReader();
+    fr.onload=ev=>{const pz=Q('pz_'+idx);if(pz)pz.innerHTML=`<img src="${ev.target.result}" style="max-width:100%;max-height:130px;border-radius:8px;display:block;margin:0 auto;">`;};
+    fr.readAsDataURL(e.target.files[0]);
+  }
+}
+async function submitTask(idx){
+  if(!L.photoReady[idx]){alert('Take or select a photo first!');return;}
+  L.myTasksDone.add(idx); L.photoReady[idx]=false;
+  try{
+    await db.ref('games/'+L.gameCode+'/taskLog').push({taskIdx:idx,ts:Date.now()});
+    await db.ref('games/'+L.gameCode+'/tasksDone').transaction(c=>(c||0)+1);
+  }catch(e){
+    console.error('Submit failed:',e);
+    alert('Submission failed — check connection and try again.');
+    L.myTasksDone.delete(idx); return;
+  }
+  renderPlayerTaskList();
+  updatePlayerBar();
+}
+
+// ── MEETINGS ──
+function showMeeting(type){
+  if(!Q('meeting-screen').classList.contains('hidden')) return;
+  Q('meet-sub').textContent = type==='body'?'BODY REPORTED — discuss before voting.':'Called by host — discuss before voting.';
+  L.selectedVote=null; renderVoteList(); Q('vote-err').textContent='';
+  Q('meeting-screen').classList.remove('hidden');
+}
+function hostMeeting(type){ gref().update({meetingOpen:true,meetingType:type}); }
+function renderVoteList(){
+  const vl=Q('vote-list'); vl.innerHTML='';
+  const players=L.snap.players||[];
+  const elim=L.snap.eliminated?Object.values(L.snap.eliminated):[];
+  players.filter(p=>!elim.includes(p)).forEach((p,i)=>{
+    const init=p.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+    const pi=players.indexOf(p);
+    const el=document.createElement('div'); el.className='vote-opt'+(L.selectedVote===p?' sel':'');
+    el.innerHTML=`<div class="v-av" style="background:${COLORS[pi%COLORS.length]}22;color:${COLORS[pi%COLORS.length]};">${init}</div>${p}`;
+    el.onclick=()=>{L.selectedVote=p;renderVoteList();};
+    vl.appendChild(el);
+  });
+}
+function castVote(){
+  if(!L.selectedVote){Q('vote-err').textContent='Pick someone first.';return;}
+  const ejected=L.selectedVote;
+  const players=L.snap.players||[];
+  const roles=L.snap.roles||{};
+  const elim=L.snap.eliminated?Object.values(L.snap.eliminated):[];
+  const newElim=[...elim,ejected];
+  const pts={...(L.snap.roundPoints||{})};
+  if(roles[ejected]==='crewmate'){
+    players.filter(p=>roles[p]==='imposter'&&!newElim.includes(p))
+      .forEach(p=>{pts[p]=(pts[p]||0)+1/3;});
+  }
+  // store eliminated as object (Firebase array-safe)
+  const elimObj={};newElim.forEach((p,i)=>{elimObj[i]=p;});
+  gref().update({eliminated:elimObj,roundPoints:pts,meetingOpen:false});
+  const wasImp=roles[ejected]==='imposter';
+  Q('meeting-screen').classList.add('hidden'); L.selectedVote=null;
+  if(L.isHost){ checkWin(); alert(`${ejected} ejected! They were ${wasImp?'an IMPOSTER 🗡️':'a CREWMATE 🧑‍🚀'}.`); }
+}
+function skipVote(){ gref().update({meetingOpen:false}); Q('meeting-screen').classList.add('hidden'); L.selectedVote=null; }
+
+// ── WIN ──
+function checkWin(){
+  const d=L.snap; if(d.gameOver) return;
+  const players=d.players||[];
+  const roles=d.roles||{};
+  const elim=d.eliminated?Object.values(d.eliminated):[];
+  const alive=players.filter(p=>!elim.includes(p));
+  const aliveImp=alive.filter(p=>roles[p]==='imposter');
+  const aliveCrew=alive.filter(p=>roles[p]==='crewmate');
+  if((d.tasksDone||0)>=(d.taskPool||L.taskPool)){triggerWin('crew','Task bar filled!');}
+  else if(aliveImp.length===0){triggerWin('crew','All imposters ejected!');}
+  else if(aliveImp.length>=aliveCrew.length){triggerWin('imp','Imposters outnumber crew!');}
+}
+function triggerWin(side,reason){
+  const d=L.snap; if(d.gameOver) return;
+  clearInterval(L.timerInt);
+  const crewWin=side==='crew';
+  const players=d.players||[];
+  const roles=d.roles||{};
+  const elim=d.eliminated?Object.values(d.eliminated):[];
+  const pts={...(d.roundPoints||{})};
+  if(crewWin){
+    players.filter(p=>roles[p]==='crewmate'&&!elim.includes(p)).forEach(p=>{pts[p]=(pts[p]||0)+1;});
+  } else {
+    players.filter(p=>roles[p]==='imposter').forEach(p=>{pts[p]=(pts[p]||0)+2;});
+  }
+  players.forEach(p=>{L.seasonPts[p]=(L.seasonPts[p]||0)+(pts[p]||0);});
+  const elimObj2={};(L.snap.eliminated||[]).forEach((p,i)=>{elimObj2[i]=p;});
+  gref().update({gameOver:true,winSide:side,winReason:reason,roundPoints:pts});
+}
+function confirmForceEnd(){ if(confirm('Force end game?')) triggerWin('none','Host ended the game.'); }
+function renderEndgame(side,reason){
+  clearInterval(L.timerInt);
+  const d=L.snap;
+  const crewWin=side==='crew';
+  Q('eg-icon').textContent=crewWin?'🧑‍🚀':'🗡️';
+  Q('eg-title').textContent=crewWin?'CREWMATES WIN':side==='none'?'GAME OVER':'IMPOSTERS WIN';
+  Q('eg-title').className='end-title '+(crewWin?'crew':'imp');
+  Q('eg-sub').textContent=reason||'';
+  const el=Q('eg-pts'); el.innerHTML='';
+  const players=d.players||[];
+  const roles=d.roles||{};
+  const pts=d.roundPoints||{};
+  [...players].sort((a,b)=>(pts[b]||0)-(pts[a]||0)).forEach(p=>{
+    const row=document.createElement('div'); row.className='erow';
+    row.innerHTML=`<span>${p} ${roles[p]==='imposter'?'🗡️':'🧑‍🚀'}</span><span class="eval">+${(pts[p]||0).toFixed(2)}</span>`;
+    el.appendChild(row);
+  });
+  goScreen('endgame');
+}
+function openSeasonModal(){
+  const d=L.snap; const players=d.players||[];
+  const sl=Q('season-list'); sl.innerHTML='';
+  [...players].sort((a,b)=>(L.seasonPts[b]||0)-(L.seasonPts[a]||0)).forEach((p,i)=>{
+    const row=document.createElement('div'); row.className='srow';
+    row.innerHTML=`<span>${MEDALS[i]||''} ${p}</span><span class="sval">${(L.seasonPts[p]||0).toFixed(2)}</span>`;
+    sl.appendChild(row);
+  });
+  Q('season-overlay').classList.remove('hidden');
+}
+function hardReset(){ db.ref('games/'+L.gameCode).off(); goScreen('landing'); initSetup(); }
+
+// ── TIMER ──
+function startTimer(){
+  L.timerSec=0; clearInterval(L.timerInt);
+  L.timerInt=setInterval(()=>{
+    L.timerSec++;
+    const m=String(Math.floor(L.timerSec/60)).padStart(2,'0');
+    const s=String(L.timerSec%60).padStart(2,'0');
+    Q('g-timer').textContent=`${m}:${s}`;
+  },1000);
+}
+
+// ── BOOT ──
+initSetup();
+</script>
+</body>
+</html>
